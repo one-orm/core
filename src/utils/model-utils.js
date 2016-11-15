@@ -71,3 +71,18 @@ export function getChangedColumns(instance) {
         return instance.constructor._modelMeta.fields[fieldName].column || fieldName;
     });
 }
+
+export function getPrimaryKeys(obj) {
+    const allFields = getAllFields(obj);
+    return Object.keys(allFields).filter((key) => {
+        return allFields[key].primary;
+    });
+}
+
+export function getPrimaryKeyFields(obj) {
+    const allFields = getAllFields(obj);
+    return getPrimaryKeys(obj)
+        .map((key) => {
+            return allFields[key];
+        });
+}

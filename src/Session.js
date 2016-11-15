@@ -22,7 +22,9 @@ export default class Session {
      */
     constructor(adapter, options) {
         this.adapter = adapter;
-        this.options = options;
+        this.options = Object.assign({
+            'promise': Promise
+        }, options);
         this.models = {};
     }
 
@@ -52,46 +54,97 @@ export default class Session {
      ************************************************************************ */
     /**
      * Retrieves a list of matching entities.
-     * @param conditions {Object}
-     * @param options {Object}
-     * @param options.skip {Number}
-     * @param options.limit {Number}
+     *
+     * @param {Model} cls - The model representation to find
+     * @param {Object} query - Any query conditions that must be met for a
+     *         record to be found
+     * @param {Object} options - Options governing the query run
+     * @param {Number} options.skip - The number of records at the beginning of
+     *         the recordset to discard
+     * @param {Number} options.limit - The maximum number of records to return
+     *         in the resulting dataset
+     * @returns {Promise} - A promise to be fulfilled with the result
      */
-    findAll(cls, conditions, options = {}) {
-        return this._find(cls, conditions, options);
+    findAll(cls, query, options = {}) {
+        return this._find(cls, query, options);
     }
 
     /**
-     * Retrieves the first matching entity.
+     * Retrieves the first matching entity. No guarantees are made about which
+     * entity will be returned first unless an ordering clause is used.
+     *
+     * @param {Model} cls - The model representation to find
+     * @param {Object} query - Any query conditions that must be met for a
+     *         record to be found
+     * @param {Object} options - Options governing the query run
+     * @returns {Promise} - A promise to be fulfilled with the result
      */
-    findOne(cls, conditions, options = {}) {
-        return this._find(cls, conditions, Object.assign({}, options, {
+    findOne(cls, query, options = {}) {
+        return this._find(cls, query, Object.assign({}, options, {
             'skip': 0,
             'limit': 1
         }));
     }
 
-    findOnly(cls, conditions, options = {}) {
-        const result = this._find(cls, conditions, Object.assign({}, options, {
-            'skip': 0,
-            'limit': 2
-        }));
-        if (result.length > 1) {
-            throw new Error('More than one result found');
-        }
-        return result;
+    /**
+     * Retrieves the only entity that matches the given query. If more than one
+     * matching entity is found, an error is thrown.
+     *
+     * @param {Model} cls - The model representation to find
+     * @param {Object} query - Any query conditions that must be met for a
+     *         record to be found
+     * @param {Object} options - Options governing the query run
+     * @returns {Promise} - A promise to be fulfilled with the result
+     */
+    findOnly(cls, query, options = {}) {
+        return this
+            ._find(cls, query, Object.assign({}, options, {
+                'skip': 0,
+                'limit': 2
+            }))
+            .then((result) => {
+                if (result && result.length > 1) {
+                    return this.options.promise.reject('More than one result found');
+                }
+                return result;
+            });
     }
 
+    /**
+     * Persist the supplied new model instance to the underlying datastore.
+     *
+     * @param {Model} instance - The model instance to be persisted
+     * @returns {Promise} - A promise representing the future operation status.
+     */
     create(instance) {
         if (!instance._instanceMeta.isNew) {
-            throw new Error('Cannot create an existing record. Use update() instead.');
+            return this.options.promise.reject(
+                'Cannot create an existing record. Use update() instead.'
+            );
         }
 
-        return this.adapter.create(this._mutate(instance));
+        return this.options.promise.resolve(
+            this.adapter.create(this._mutate(instance))
+        );
     }
 
+    /**
+     * Persist changes to the supplied model instance to the existing record in
+     * the underlying datastore.
+     *
+     * @param {Model} instance - The model instance to be persisted
+     * @returns {Promise} - A promise representing the future operation status
+     */
     update(instance) {
-        return this.adapter.update(this._mutate(instance));
+        if (instance._instanceMeta.isNew) {
+            return this.options.promise.reject(
+                'Cannot update a non-existing record. Use create() instead.'
+            );
+        }
+
+        return this.options.promise.resolve(
+            this.adapter.update(this._mutate(instance))
+        );
     }
 
     /**
@@ -105,13 +158,55 @@ export default class Session {
      * Postgres' `ON CONFLICT UPDATE` clauses. Otherwise, for generic use, we
      * just fall back to inserting, catching the unique constraint violation and
      * then updating.
+     *
+     * @param {Model} instance - The model instance to be persisted
+     * @returns {Promise} - A promise representing the future operation status
      */
     upsert(instance) {
-        return this.adapter.upsert(this._mutate(instance));
+        return this.options.promise.resolve(
+            this.adapter.upsert(this._mutate(instance))
+        );
     }
 
-    remove(obj) { // eslint-disable-line no-unused-vars
+    /**
+     * Removes the record, represented by the supplied instance, from the
+     * underlying datastore.
+     *
+     * @param {Model} instance - The model instance to be removed
+     * @returns {Promise} - A promise representing the future operation status
+     */
+    remove(instance) {
+        if (instance._instanceMeta.isNew) {
+            return this.options.promise.reject(
+                'Cannot remove a non-existing record.'
+            );
+        }
 
+        const ancestors = Utils.getAncestors(instance);
+
+        const buildRemoveQuery = function (entity) {
+            entity = Utils.getModel(entity);
+            let fields = Utils.getPrimaryKeyFields(entity);
+            if (!fields || !~Object.keys(fields)) {
+                fields = Utils.getPrimaryKeyFields(ancestors[0]);
+            }
+            fields = fields.reduce((result, field) => {
+                result[field.column] = instance[field.name];
+                return result;
+            }, {});
+            return {
+                'from': entity._modelMeta.table,
+                'where': fields
+            };
+        };
+
+        const query = ancestors
+            .map(buildRemoveQuery)
+            .concat(buildRemoveQuery(instance));
+
+        return this.options.promise.resolve(
+            this.adapter.remove(query)
+        );
     }
 
     /** ************************************************************************
@@ -121,6 +216,7 @@ export default class Session {
     /**
      * Common implementation details for select-oriented queries
      * @private
+     * @returns {Promise}
      */
     _find(cls, conditions, options = {}) {
         const ast = {
@@ -148,7 +244,7 @@ export default class Session {
             ast.limit = options.limit;
         }
 
-        return this.adapter.find(ast);
+        return Promise.resolve(this.adapter.find(ast));
     }
 
     /**
