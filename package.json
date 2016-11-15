@@ -1,0 +1,58 @@
+{
+  "name": "one-orm-core",
+  "version": "0.1.0",
+  "description": "A lightweight, extensible ORM for Javascript applications.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/one-orm/core.git"
+  },
+  "license": "MIT",
+  "scripts": {
+    "lint": "xo",
+    "fixlint": "xo --fix",
+    "test": "xo && mocha --compilers js:babel-core/register -R spec --recursive ./test",
+    "test-watch": "xo 7& mocha --compilers js:babel-core/register -R spec --watch --recursive ./test",
+    "coverage": "xo && babel-node ./node_modules/.bin/isparta cover _mocha -- -R spec --recursive ./test"
+  },
+  "main": "src/index.js",
+  "devDependencies": {
+    "babel-cli": "6.7.5",
+    "babel-core": "6.7.6",
+    "babel-eslint": "6.0.4",
+    "babel-loader": "6.2.4",
+    "babel-plugin-transform-runtime": "6.7.5",
+    "babel-polyfill": "6.7.4",
+    "babel-preset-es2015": "6.6.0",
+    "babel-runtime": "6.6.0",
+    "chai": "3.5.0",
+    "coveralls": "2.11.9",
+    "eslint": "2.6.0",
+    "eslint-plugin-babel": "3.1.0",
+    "isparta": "4.0.0",
+    "mocha": "2.4.5",
+    "mocha-lcov-reporter": "1.2.0",
+    "moment": "2.12.0",
+    "sinon": "1.17.4",
+    "xo": "^0.17.0"
+  },
+  "dependencies": {
+    "inflection": "1.10.0"
+  },
+  "xo": {
+    "parser": "babel-eslint",
+    "esnext": true,
+    "env": [ "node", "es6", "mocha" ],
+    "space": 4,
+    "rules": {
+      "eol-last": 0,
+      "unicorn/filename-case": 0,
+      "arrow-parens": ["error", "always"],
+      "object-curly-spacing": ["error", "always"],
+      "operator-linebreak": ["error", "before"],
+      "import/no-unassigned-import": 0,
+      "no-use-extend-native/no-use-extend-native": 0,
+      "no-constant-condition": 0,
+      "quote-props": ["error", "always"]
+    }
+  }
+}

@@ -20,7 +20,7 @@ A light and extensible ORM for Javascript applications.
 
 ## Feature Overview
 
-- Entirely ES6, if that matters to you
+- Primarily ES6, if that matters to you. Certain Javascript eccentricities make it difficult to define models using ES6 syntax, otherwise, everything should be ES6.
 - AST-based queries for extensibility
 - Supports typical relations (one-to-many, many-to-one, one-to-one, many-to-many)
 - Supports many-to-many with custom bridge tables
