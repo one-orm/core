@@ -3,10 +3,6 @@ import './utils/object-foreach-polyfill';
 import * as Utils from './utils/model-utils';
 import Model from './Model';
 
-// function getParent(child) {
-//     return Object.getPrototypeOf(Object.getPrototypeOf(child)).constructor;
-// }
-
 /**
  * The Session class is the core and root of the One ORM core library. The
  * session accepts an adapter which provides the connection to the underlying
@@ -16,6 +12,7 @@ import Model from './Model';
 export default class Session {
     /**
      * Builds a new instance of the Session class.
+
      * @param {Adapter} adapter - The datastore adapter.
      * @param {Object} [options] - A map of options governing the operation of
      *         the ORM.
@@ -28,6 +25,15 @@ export default class Session {
         this.models = {};
     }
 
+    /**
+     * Defines a new model representation and registers it for use.
+     *
+     * @param {String} name - The name of the new model
+     * @param {Object} fields - A map of field definitions, keyed by field name
+     * @param {Object} [options] - Additional options governing the use of the
+     *         model.
+     * @returns {Model} - The new model class
+     */
     model(name, fields, options) {
         options = options || {};
         options.instance = this;
@@ -37,11 +43,25 @@ export default class Session {
         return obj;
     }
 
+    /**
+     * Registers the given model with the session using the given name.
+     *
+     * @param {String} name - The name of the new model
+     * @param {Object} model - The new model
+     * @returns {Model} - The model supplied
+     */
     register(name, model) {
         this.models[name] = model;
         return model;
     }
 
+    /**
+     * Retrieves the model identified by the supplied name, or undefined if it
+     * does not exist.
+     *
+     * @param {String} name - The name of the model to retrieve
+     * @returns {Model} - The model requested
+     */
     get(name) {
         return this.models[name];
     }
@@ -214,9 +234,17 @@ export default class Session {
      ************************************************************************ */
 
     /**
-     * Common implementation details for select-oriented queries
+     * Common implementation details for select-oriented queries. All select-
+     * oriented queries are slightly different permutations of the same concept,
+     * often differing by as little as a `limit` condition. We therefore build
+     * all those queries representations in one place, and allow the specific
+     * find implementation to alter the query as needed.
+     *
      * @private
-     * @returns {Promise}
+     * @param {Model} cls - The model class to retrieve
+     * @param {Object} conditions - Map of conditions imposed on the query
+     * @param {Object} options - Map of additional query options
+     * @returns {Promise} - A promise fulfilled by the result of the query
      */
     _find(cls, conditions, options = {}) {
         const ast = {
@@ -248,8 +276,14 @@ export default class Session {
     }
 
     /**
-     * Common implementation details for mutation-oriented queries.
+     * Common implementation details for mutation-oriented queries. All mutation
+     * queries work off of an understanding of what changed in the model, but
+     * all those calls go to different places, so we'll provide the query
+     * representation and allow the implementors to do with it as they please.
+     *
      * @private
+     * @param {Object} instance - The instance to mutate
+     * @returns {Object} - A query representation
      */
     _mutate(instance) {
         const changedFields = Utils.getChangedFields(instance);
@@ -277,18 +311,26 @@ export default class Session {
      * Low-level utilities
      ************************************************************************ */
     /**
-     * @param options.include {Array}
-     * @param options.exclude {Array}
+     * Builds the column identifiers used to produce datastore queries. These
+     * identifiers may include table names or other identifying information as
+     * required.
+     *
      * @private
+     * @param {Model} model - The model to get columns for
+     * @param {Object} [options] - Additional options governing the query
+     * @param {String[]} [options.include] - Additional columns to add to the
+     *         query
+     * @param {String[]} [options.exclude] - Columns to remove from the query
+     * @returns {String[]} - The list of column identifiers
      */
-    buildColumnsForQuery(cls, options) {
+    buildColumnsForQuery(model, options) {
         const _options = Object.assign({
             'include': [],
             'exclude': []
         }, options);
 
-        const fields = Utils.getAncestors(cls)
-            .concat(cls)
+        const fields = Utils.getAncestors(model)
+            .concat(model)
             .reduce((result, entity) => {
                 result = Object.assign({}, result, Utils.getFields(entity));
                 return result;
@@ -312,14 +354,19 @@ export default class Session {
     }
 
     /**
+     * TODO Description required
+     *
      * @private
+     * @param {Model} model - The model to build conditions for
+     * @param {Object[]} conditions - The condition representations
+     * @returns {Object} - A map of conditions
      */
-    buildConditionsForQuery(cls, conditions) {
+    buildConditionsForQuery(model, conditions) {
         if (!conditions || Object.keys(conditions).length === 0) {
             return;
         }
 
-        const fields = Utils.getAllFields(cls);
+        const fields = Utils.getAllFields(model);
         const result = {};
 
         Object.forEach(conditions, (condition, key) => {
@@ -334,24 +381,34 @@ export default class Session {
     }
 
     /**
+     * Determines which joins are needed in order to retrieve the correct
+     * information all at the same time.
+     *
      * @private
+     * @param {Model} model - The model to build joins for
+     * @returns {Object[]} - A list of join definitions
      */
-    buildJoinsForQuery(cls) {
-        if (cls._modelMeta.options.extends) {
-            const parent = Utils.getParent(cls);
+    buildJoinsForQuery(model) {
+        if (model._modelMeta.options.extends) {
+            const parent = Utils.getParent(model);
             return [{
                 'to': parent._modelMeta.options.table,
                 'as': parent.name,
-                'on': this.relatePrimaryKeys(cls)
+                'on': this.relatePrimaryKeys(model)
             }];
         }
     }
 
     /**
+     * Relates the primary keys of a parent model to the primary keys of a child
+     * model, such that the proper joins may be made.
+     *
      * @private
+     * @param {Model} model - The model to relate keys for
+     * @returns {Object} - A map keyed by child key to the related parent key
      */
-    relatePrimaryKeys(cls) {
-        const localFields = Utils.getFields(cls);
+    relatePrimaryKeys(model) {
+        const localFields = Utils.getFields(model);
         let localPrimaries = Object.keys(localFields)
             .filter((fieldName) => {
                 return localFields[fieldName].primary;
@@ -359,7 +416,7 @@ export default class Session {
             .map((fieldName) => {
                 return localFields[fieldName];
             });
-        const parentFields = Utils.getFields(Utils.getParent(cls));
+        const parentFields = Utils.getFields(Utils.getParent(model));
         const parentPrimaries = Object.keys(parentFields)
             .filter((fieldName) => {
                 return parentFields[fieldName].primary;
@@ -368,8 +425,8 @@ export default class Session {
                 return parentFields[fieldName];
             });
 
-        // We just assume that the dev has added identical primary keys to the
-        // child table
+        // TODO We just assume that the dev has added identical primary keys to
+        // the child table
         if (localPrimaries.length === 0) {
             localPrimaries = parentPrimaries.slice();
         }

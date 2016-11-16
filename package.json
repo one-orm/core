@@ -69,6 +69,39 @@
       "quote-props": [
         "error",
         "always"
+      ],
+      "require-jsdoc": [
+        "error",
+        {
+          "require": {
+            "FunctionDeclaration": true,
+            "MethodDefinition": true,
+            "ClassDeclaration": true,
+            "ArrowFunctionExpression": false
+          }
+        }
+      ],
+      "valid-jsdoc": [
+        "error",
+        {
+          "matchDescription": ".+",
+          "requireParamDescription": true,
+          "requireReturn": false,
+          "requireReturnType": true,
+          "requireReturnDescription": true,
+          "prefer": {
+            "arg": "param",
+            "argument": "param",
+            "return": "returns",
+            "virtual": "abstract"
+          },
+          "preferType": {
+            "boolean": "Boolean",
+            "number": "Number",
+            "object": "Object",
+            "string": "String"
+          }
+        }
       ]
     }
   }
