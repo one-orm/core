@@ -32,24 +32,24 @@ import * as ModelUtils from './model-utils';
  * ```
  *
  * @param {String} path - The textual graph representation to resolve
- * @param {Session} session - The session to draw entities from
+ * @param {Model} root - The root entity of the graph. Using the root entity
+ *         rather than a session allows us to support multiple sessions.
  * @returns {Object[]|null} - A list of node representations or null if graph is
  *         invalid
  */
-export function resolveGraph(path, session) {
-    if (!session || !path || !path.substr || path.length === 0) {
+export function resolveGraph(path, root) {
+    if (!root || !path || !path.substr || path.length === 0) {
         return null;
     }
 
 	// If the graph is a single segment
     if (path.indexOf('.') === -1) {
-        const entity = session.get(path);
-        if (!entity) {
+        if (root.name !== path) {
             return null;
         }
         return [{
             'key': path,
-            'ref': entity.name
+            'ref': root
         }];
     }
 
@@ -57,13 +57,17 @@ export function resolveGraph(path, session) {
     let result = [];
     const parts = path.split('.');
     const previousKey = parts.shift();
-    let previousEntity = session.get(previousKey);
+    if (root.name !== previousKey) {
+        return null;
+    }
+
+    let previousEntity = root;
     if (!previousEntity) {
         return null;
     }
     result.push({
         'key': previousKey,
-        'ref': previousEntity.name
+        'ref': previousEntity
     });
 
     parts.forEach((part) => {
@@ -82,7 +86,7 @@ export function resolveGraph(path, session) {
         };
         if (field.ref) {
             node.ref = field.ref;
-            previousEntity = session.get(field.ref);
+            previousEntity = field.ref;
         } else {
             node.type = field.type;
         }

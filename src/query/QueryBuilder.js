@@ -25,10 +25,10 @@ export default class QueryBuilder {
      * @returns {String} - The new, unique alias
      */
     tableAlias(name) {
-        if (this._counters[name]) {
-            this._counters[name] += 1;
-        } else {
+        if (typeof this._counters[name] === 'undefined') {
             this._counters[name] = 0;
+        } else {
+            this._counters[name] += 1;
         }
         return name + this._counters[name];
     }

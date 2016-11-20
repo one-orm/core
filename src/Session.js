@@ -239,7 +239,7 @@ export default class Session {
      * @returns {Promise} - A promise fulfilled by the result of the query
      */
     _find(cls, conditions, options = {}) {
-        const query = new FindQueryBuilder(cls, conditions, options);
+        const query = new FindQueryBuilder(cls, conditions, options, this);
         return Promise.resolve(this.adapter.find(query.toQueryObject()));
     }
 
