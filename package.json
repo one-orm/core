@@ -11,7 +11,7 @@
     "lint": "xo",
     "fixlint": "xo --fix",
     "test": "xo && mocha --compilers js:babel-core/register -R spec --recursive ./test",
-    "test-watch": "xo 7& mocha --compilers js:babel-core/register -R spec --watch --recursive ./test",
+    "test-watch": "xo && mocha --compilers js:babel-core/register -R spec --watch --recursive ./test",
     "coverage": "xo && babel-node ./node_modules/.bin/isparta cover _mocha -- -R spec --recursive ./test"
   },
   "main": "src/index.js",
@@ -102,7 +102,8 @@
             "string": "String"
           }
         }
-      ]
+      ],
+      "no-console": "error"
     }
   }
 }
