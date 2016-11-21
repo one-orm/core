@@ -4,6 +4,7 @@ A light and extensible ORM for Javascript applications.
 
 [![Build Status: Linux](https://travis-ci.org/one-orm/core.svg?branch=master)](https://travis-ci.org/one-orm/core)
 [![Coverage Status](https://coveralls.io/repos/github/one-orm/core/badge.svg?branch=master)](https://coveralls.io/github/one-orm/core?branch=master)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/6be45d3ad77046858af060d834ed7518)](https://www.codacy.com/app/thomas-w/core?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=one-orm/core&amp;utm_campaign=Badge_Grade)
 [![XO code style](https://img.shields.io/badge/code_style-XO-5ed9c7.svg)](https://github.com/one-orm/core)
 [![Gitter](https://badges.gitter.im/join_chat.svg)](https://gitter.im/one-orm/Lobby)
 
