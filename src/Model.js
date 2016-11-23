@@ -35,7 +35,7 @@ export default class Model {
         const parent = this;
 
         const obj = function () {
-            parent.apply(this, Array.prototype.slice(arguments));
+            parent.apply(this, Array.prototype.slice.call(arguments));
         };
         Object.defineProperty(obj, 'name', { 'value': name });
 

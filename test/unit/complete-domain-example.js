@@ -4,8 +4,8 @@
 //
 // The first usage of any feature should be noted.
 //
-import sinon from 'sinon';
 import Session from '../../src/Session';
+import { adapterSpy } from './utils';
 
 const session = new Session();
 export default session;
@@ -37,6 +37,10 @@ const User = session.model('User', {
     },
     'role': {
         'type': String
+    },
+    'password': {
+        'type': String,
+        'exclude': true
     }
 }, {
     'table': 'users'
@@ -66,7 +70,14 @@ const Post = session.model('Post', {
         'type': String
     },
     'author': {
-        'ref': 'User' // Foreign key to another table/model
+        'ref': 'User', // Foreign key to another table/model
+        'relation': 'one-to-one', // Type of the relationship
+        'column': 'author_id'
+    },
+    'editor': {
+        'ref': 'User',
+        'relation': 'one-to-one',
+        'column': 'editor_id'
     },
     'created': {
         'type': Date
@@ -76,12 +87,4 @@ const Post = session.model('Post', {
 });
 export { User, Client, Post };
 
-const adapterSpy = function () {
-    return {
-        'find': sinon.spy(),
-        'create': sinon.spy(),
-        'update': sinon.spy(),
-        'remove': sinon.spy()
-    };
-};
 export { adapterSpy };

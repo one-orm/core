@@ -2,6 +2,7 @@ import './utils/object-values-polyfill';
 import './utils/object-foreach-polyfill';
 import * as Utils from './utils/model-utils';
 import Model from './Model';
+import FindQueryBuilder from './query/FindQueryBuilder';
 
 /**
  * The Session class is the core and root of the One ORM core library. The
@@ -36,23 +37,14 @@ export default class Session {
      */
     model(name, fields, options) {
         options = options || {};
-        options.instance = this;
+        if (options.extend && !(options.extend instanceof Model)) {
+            throw new Error('Model must extend another model');
+        }
 
         const obj = Model.extend(name, fields, options);
         delete obj.prototype.super;
+        this.models[name] = obj;
         return obj;
-    }
-
-    /**
-     * Registers the given model with the session using the given name.
-     *
-     * @param {String} name - The name of the new model
-     * @param {Object} model - The new model
-     * @returns {Model} - The model supplied
-     */
-    register(name, model) {
-        this.models[name] = model;
-        return model;
     }
 
     /**
@@ -202,7 +194,7 @@ export default class Session {
             );
         }
 
-        const ancestors = Utils.getAncestors(instance);
+        const ancestors = Utils.getAncestors(instance, this);
 
         const buildRemoveQuery = function (entity) {
             entity = Utils.getModel(entity);
@@ -247,32 +239,8 @@ export default class Session {
      * @returns {Promise} - A promise fulfilled by the result of the query
      */
     _find(cls, conditions, options = {}) {
-        const ast = {
-            'columns': this.buildColumnsForQuery(cls, options),
-            'from': cls._modelMeta.table,
-            'as': cls.name
-        };
-
-        // Handle joins
-        const _joins = this.buildJoinsForQuery(cls);
-        if (_joins) {
-            ast.join = _joins;
-        }
-        // Build conditions
-        const _conditions = this.buildConditionsForQuery(cls, conditions);
-        if (_conditions) {
-            ast.where = _conditions;
-        }
-        // Skip
-        if (options.skip) {
-            ast.skip = options.skip;
-        }
-        // Limit
-        if (options.limit) {
-            ast.limit = options.limit;
-        }
-
-        return Promise.resolve(this.adapter.find(ast));
+        const query = new FindQueryBuilder(cls, conditions, options, this);
+        return Promise.resolve(this.adapter.find(query.toQueryObject()));
     }
 
     /**
@@ -305,139 +273,6 @@ export default class Session {
             .getAncestors(instance)
             .map(getInsertForModel)
             .concat(getInsertForModel(instance.constructor));
-    }
-
-    /** ************************************************************************
-     * Low-level utilities
-     ************************************************************************ */
-    /**
-     * Builds the column identifiers used to produce datastore queries. These
-     * identifiers may include table names or other identifying information as
-     * required.
-     *
-     * @private
-     * @param {Model} model - The model to get columns for
-     * @param {Object} [options] - Additional options governing the query
-     * @param {String[]} [options.include] - Additional columns to add to the
-     *         query
-     * @param {String[]} [options.exclude] - Columns to remove from the query
-     * @returns {String[]} - The list of column identifiers
-     */
-    buildColumnsForQuery(model, options) {
-        const _options = Object.assign({
-            'include': [],
-            'exclude': []
-        }, options);
-
-        const fields = Utils.getAncestors(model)
-            .concat(model)
-            .reduce((result, entity) => {
-                result = Object.assign({}, result, Utils.getFields(entity));
-                return result;
-            }, {});
-
-        const columns = Object.values(fields)
-            .filter((field) => {
-                // Handle inclusions and exclusions
-                return _options.exclude.indexOf(field.name) === -1
-                        || _options.include.indexOf(field.name) !== -1;
-            })
-            .map((field) => {
-                return field.owningModel + '.' + field.column;
-            });
-        _options.include.forEach((includeName) => {
-            if (!(includeName in fields)) {
-                columns.push(includeName);
-            }
-        });
-        return columns;
-    }
-
-    /**
-     * TODO Description required
-     *
-     * @private
-     * @param {Model} model - The model to build conditions for
-     * @param {Object[]} conditions - The condition representations
-     * @returns {Object} - A map of conditions
-     */
-    buildConditionsForQuery(model, conditions) {
-        if (!conditions || Object.keys(conditions).length === 0) {
-            return;
-        }
-
-        const fields = Utils.getAllFields(model);
-        const result = {};
-
-        Object.forEach(conditions, (condition, key) => {
-            if (key.indexOf('.') === -1) {
-                const field = fields[key];
-                result[field.owningModel + '.' + field.column] = condition;
-            } else {
-                result[key] = condition;
-            }
-        });
-        return result;
-    }
-
-    /**
-     * Determines which joins are needed in order to retrieve the correct
-     * information all at the same time.
-     *
-     * @private
-     * @param {Model} model - The model to build joins for
-     * @returns {Object[]} - A list of join definitions
-     */
-    buildJoinsForQuery(model) {
-        if (model._modelMeta.options.extends) {
-            const parent = Utils.getParent(model);
-            return [{
-                'to': parent._modelMeta.options.table,
-                'as': parent.name,
-                'on': this.relatePrimaryKeys(model)
-            }];
-        }
-    }
-
-    /**
-     * Relates the primary keys of a parent model to the primary keys of a child
-     * model, such that the proper joins may be made.
-     *
-     * @private
-     * @param {Model} model - The model to relate keys for
-     * @returns {Object} - A map keyed by child key to the related parent key
-     */
-    relatePrimaryKeys(model) {
-        const localFields = Utils.getFields(model);
-        let localPrimaries = Object.keys(localFields)
-            .filter((fieldName) => {
-                return localFields[fieldName].primary;
-            })
-            .map((fieldName) => {
-                return localFields[fieldName];
-            });
-        const parentFields = Utils.getFields(Utils.getParent(model));
-        const parentPrimaries = Object.keys(parentFields)
-            .filter((fieldName) => {
-                return parentFields[fieldName].primary;
-            })
-            .map((fieldName) => {
-                return parentFields[fieldName];
-            });
-
-        // TODO We just assume that the dev has added identical primary keys to
-        // the child table
-        if (localPrimaries.length === 0) {
-            localPrimaries = parentPrimaries.slice();
-        }
-
-        if (localPrimaries.length !== parentPrimaries.length) {
-            throw new Error('Primary key count mismatch between ' + this._modelMeta.name + ' and parent ' + this._modelMeta.options.extends._modelMeta.name);
-        }
-
-        if (localPrimaries.length === 1) {
-            return { [localPrimaries[0].name]: parentPrimaries[0].name };
-        }
     }
 
 }
