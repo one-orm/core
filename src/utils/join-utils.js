@@ -1,5 +1,6 @@
 import * as ModelUtils from './model-utils';
 import * as IdentUtils from './identifier-utils';
+import * as FieldUtils from './field-utils';
 
 /**
  * Builds a map of foreign key to primary key columns between the supplied child
@@ -50,18 +51,32 @@ export function getJoinColumnsFromChildToParent(child, childAlias, parentAlias) 
 export function getJoinColumns(model, fieldName, sourceAlias, targetAlias) {
     // TODO Composite key support
 
-    const field = model._modelMeta.fields[fieldName];
+    const field = ModelUtils.getField(model, fieldName);
     if (!field.ref) {
         throw new Error('Cannot join on a field that does not refer to another model');
     }
+    const target = FieldUtils.getRef(field);
 
-    // Get the primary key of the target entity
-    const targetPrimaryFields = ModelUtils.getPrimaryFields(field.ref);
-    if (targetPrimaryFields.length > 1) {
-        throw new Error('Composite keys are not yet supported');
+    if (field.relation === 'one-to-one' || field.relation === 'many-to-one') {
+        // Get the primary key of the target entity
+        const targetPrimaryFields = ModelUtils.getPrimaryFields(target);
+        if (targetPrimaryFields.length > 1) {
+            throw new Error('Composite keys are not yet supported');
+        }
+
+        return {
+            [IdentUtils.prefixAlias(field.column, sourceAlias)]: IdentUtils.prefixAlias(targetPrimaryFields[0].column, targetAlias)
+        };
     }
 
-    return {
-        [IdentUtils.prefixAlias(field.column, sourceAlias)]: IdentUtils.prefixAlias(targetPrimaryFields[0].column, targetAlias)
-    };
+    if (field.relation === 'one-to-many') {
+        const targetField = ModelUtils.getField(target, field.mappedBy);
+        const ownerPrimaryFields = ModelUtils.getPrimaryFields(field.owningModel);
+        if (ownerPrimaryFields.length > 1) {
+            throw new Error('Composite keys are not yet supported');
+        }
+        return {
+            [IdentUtils.prefixAlias(ownerPrimaryFields[0].column, sourceAlias)]: IdentUtils.prefixAlias(targetField.column, targetAlias)
+        };
+    }
 }

@@ -1,6 +1,7 @@
 /* eslint import/prefer-default-export: "off" */
 
 import * as ModelUtils from './model-utils';
+import * as FieldUtils from './field-utils';
 
 /**
  * Breaks down the supplied entity graph and returns an array of objects, where
@@ -85,8 +86,8 @@ export function resolveGraph(path, root) {
             'key': part
         };
         if (field.ref) {
-            node.ref = field.ref;
-            previousEntity = field.ref;
+            node.ref = FieldUtils.getRef(field);
+            previousEntity = node.ref;
         } else {
             node.type = field.type;
         }

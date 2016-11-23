@@ -87,7 +87,7 @@ export default class Model {
                 field.column = fieldName;
             }
             if (!field.owningModel) {
-                field.owningModel = this.name;
+                field.owningModel = this;
             }
         });
         return this;

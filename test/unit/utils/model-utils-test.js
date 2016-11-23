@@ -87,7 +87,7 @@ describe('Model Utilities tests', () => {
                 'column': 'numDoors',
                 'name': 'numDoors',
                 'type': Number,
-                'owningModel': 'Sedan'
+                'owningModel': Sedan
             });
         });
         it('Returns field for model instance', () => {
@@ -96,7 +96,7 @@ describe('Model Utilities tests', () => {
                 'column': 'numDoors',
                 'name': 'numDoors',
                 'type': Number,
-                'owningModel': 'Sedan'
+                'owningModel': Sedan
             });
         });
     });
@@ -108,7 +108,7 @@ describe('Model Utilities tests', () => {
                 'numDoors': {
                     'column': 'numDoors',
                     'name': 'numDoors',
-                    'owningModel': 'Sedan',
+                    'owningModel': Sedan,
                     'type': Number
                 }
             });
@@ -119,7 +119,7 @@ describe('Model Utilities tests', () => {
                 'numDoors': {
                     'column': 'numDoors',
                     'name': 'numDoors',
-                    'owningModel': 'Sedan',
+                    'owningModel': Sedan,
                     'type': Number
                 }
             });
@@ -133,7 +133,7 @@ describe('Model Utilities tests', () => {
                 'numDoors': {
                     'column': 'numDoors',
                     'name': 'numDoors',
-                    'owningModel': 'Sedan',
+                    'owningModel': Sedan,
                     'type': Number
                 }
             });
@@ -144,7 +144,7 @@ describe('Model Utilities tests', () => {
                 'numDoors': {
                     'column': 'numDoors',
                     'name': 'numDoors',
-                    'owningModel': 'Sedan',
+                    'owningModel': Sedan,
                     'type': Number
                 }
             });

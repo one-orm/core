@@ -1,6 +1,7 @@
 import * as ModelUtils from '../utils/model-utils';
 import * as JoinUtils from '../utils/join-utils';
 import * as GraphUtils from '../utils/graph-utils';
+import * as FieldUtils from '../utils/field-utils';
 import QueryBuilder from './QueryBuilder';
 
 /**
@@ -97,22 +98,27 @@ export default class FindQueryBuilder extends QueryBuilder {
         }
         Object.keys(fields).forEach((key) => {
             const field = fields[key];
-
-            // Priorities:
-            // 1) Explicit exclude
-            // 2) Explicit include
-            // 3) Model exclude
             const _graph = graph + '.' + key;
-            if (this.options.exclude.indexOf(_graph) !== -1
-                    || (field.exclude && this.options.include.indexOf(_graph) === -1)) {
+
+            // 1) Explicit exclude takes priority over includes
+            if (this.options.exclude.indexOf(_graph) !== -1) {
+                return;
+            }
+
+            // 2) Explicit include overrides model exclude
+            if (field.exclude && this.options.include.indexOf(_graph) === -1) {
                 return;
             }
 
             // If this is a relational field
-            if (field.ref && (field.eager
-                    || this.options.include.indexOf(_graph) !== -1)) {
-                this.join(_graph);
-                return;
+            if (field.ref) {
+                if (field.eager || this.options.include.indexOf(_graph) !== -1) {
+                    this.join(_graph);
+                    return;
+                }
+                if (field.relation === 'one-to-many' || field.relation === 'many-to-many') {
+                    return;
+                }
             }
 
             this._fields.push({
@@ -149,6 +155,7 @@ export default class FindQueryBuilder extends QueryBuilder {
         nodes.forEach((node) => {
             const currentGraph = lastGraph + '.' + node.key;
             const existingAlias = this._joinFromLookup[currentGraph];
+
             if (existingAlias) {
                 lastGraph = currentGraph;
                 lastNode = node;
@@ -156,20 +163,25 @@ export default class FindQueryBuilder extends QueryBuilder {
                 return;
             }
 
-            // TODO We want to join on the current graph
+            // const target = FieldUtils.getRef(node);
+            // const alias = this.tableAlias(target.name);
             const alias = this.tableAlias(node.ref.name);
+            const target = FieldUtils.getRef(node);
+            // const alias = this.tableAlias(target.name);
+
             this._joins.push({
-                'table': node.ref._modelMeta.options.table,
+                'table': target._modelMeta.options.table,
                 'as': alias,
-                'on': JoinUtils.getJoinColumns(lastNode.ref, node.key, lastAlias, alias),
+                'on': JoinUtils.getJoinColumns(FieldUtils.getRef(lastNode), node.key, lastAlias, alias),
                 'from': currentGraph
             });
+
+            this.addFields(currentGraph, alias, ModelUtils.getFields(ModelUtils.getModel(node.ref)));
+            this.joinParent(FieldUtils.getRef(node), alias);
+
             lastGraph = currentGraph;
             lastNode = node;
             lastAlias = alias;
-
-            this.addFields(lastGraph, lastAlias, ModelUtils.getFields(lastNode.ref));
-            this.joinParent(lastNode.ref, lastAlias);
         });
         return lastAlias;
     }
