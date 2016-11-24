@@ -1,3 +1,5 @@
+import { buildAssociationEntity } from './utils/join-utils';
+
 /**
  * Because ES6 doesn't support true OOP inheritance, nor does it support
  * instance property definitions, the Model class bridges that gap by providing
@@ -88,6 +90,9 @@ export default class Model {
             }
             if (!field.owningModel) {
                 field.owningModel = this;
+            }
+            if (field.relation === 'many-to-many') {
+                buildAssociationEntity(field, Model);
             }
         });
         return this;

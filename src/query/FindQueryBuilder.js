@@ -163,25 +163,43 @@ export default class FindQueryBuilder extends QueryBuilder {
                 return;
             }
 
-            // const target = FieldUtils.getRef(node);
-            // const alias = this.tableAlias(target.name);
-            const alias = this.tableAlias(node.ref.name);
+            const sourceField = ModelUtils.getField(lastNode.ref, node.key);
             const target = FieldUtils.getRef(node);
-            // const alias = this.tableAlias(target.name);
+            const targetAlias = this.tableAlias(target.name);
 
-            this._joins.push({
-                'table': target._modelMeta.options.table,
-                'as': alias,
-                'on': JoinUtils.getJoinColumns(FieldUtils.getRef(lastNode), node.key, lastAlias, alias),
-                'from': currentGraph
-            });
+            if (sourceField.relation === 'many-to-many') {
+                const startField = sourceField;
+                const endField = JoinUtils.getOtherSide(sourceField);
+                const endAlias = targetAlias;
+                const associationEntity = endField.through;
+                const associationAlias = this.tableAlias(associationEntity.name);
 
-            this.addFields(currentGraph, alias, ModelUtils.getFields(ModelUtils.getModel(node.ref)));
-            this.joinParent(FieldUtils.getRef(node), alias);
+                this._joins.push({
+                    'table': associationEntity._modelMeta.options.table,
+                    'as': associationAlias,
+                    'on': JoinUtils.getJoinColumns(JoinUtils.getFieldReferringTo(startField.through, startField.owningModel), associationAlias, lastAlias)
+                });
+
+                this._joins.push({
+                    'table': endField.owningModel._modelMeta.options.table,
+                    'as': endAlias,
+                    'on': JoinUtils.getJoinColumns(JoinUtils.getFieldReferringTo(endField.through, endField.owningModel), associationAlias, endAlias)
+                });
+            } else {
+                this._joins.push({
+                    'table': target._modelMeta.options.table,
+                    'as': targetAlias,
+                    'on': JoinUtils.getJoinColumns(sourceField, lastAlias, targetAlias),
+                    'from': currentGraph
+                });
+            }
+
+            this.addFields(currentGraph, targetAlias, ModelUtils.getFields(ModelUtils.getModel(node.ref)));
+            this.joinParent(FieldUtils.getRef(node), targetAlias);
 
             lastGraph = currentGraph;
             lastNode = node;
-            lastAlias = alias;
+            lastAlias = targetAlias;
         });
         return lastAlias;
     }
