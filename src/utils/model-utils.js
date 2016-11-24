@@ -115,7 +115,7 @@ export function getAllFields(model) {
  */
 export function getChangedFields(instance) {
     const allKeys = []
-            .concat(Object.keys(instance._instanceMeta.originalData || {}))
+            .concat(Object.keys(instance._instanceMeta.originalData))
             .concat(Object.keys(getAllFields(instance)));
     return Object.keys(allKeys.reduce((result, key) => {
         if (instance[key] !== instance._instanceMeta.originalData[key]) {
@@ -123,33 +123,6 @@ export function getChangedFields(instance) {
         }
         return result;
     }, {}));
-}
-
-/**
- * Retrieves a list of columns as they are represented in the datastore.
- *
- * @param {Object} model - The model or instance
- * @returns {String[]} - The list of column names
- */
-export function getColumns(model) {
-    return Object.keys(model._modelMeta.fields).map((fieldName) => {
-        const field = model._modelMeta.fields[fieldName];
-        return field.column || fieldName;
-    });
-}
-
-/**
- * Retrieves a list of columns that have changed on the model.
- *
- * @deprecated
- * @uses getChangedFields
- * @param {Object} instance - The instance that has changed
- * @returns {String[]} - The list of columns that have changed
- */
-export function getChangedColumns(instance) {
-    return getChangedFields(instance).map((fieldName) => {
-        return instance.constructor._modelMeta.fields[fieldName].column || fieldName;
-    });
 }
 
 /**

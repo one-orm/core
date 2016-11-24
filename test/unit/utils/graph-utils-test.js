@@ -58,6 +58,26 @@ const Comment = session.model('Comment', {
 
 describe('Graph Utilities tests', () => {
     describe('resolveGraph()', () => {
+        it('Returns null if no root given', () => {
+            const result = GraphUtils.resolveGraph('Comment.post');
+            expect(result).to.be.null;
+        });
+
+        it('Returns null if no graph given', () => {
+            const result = GraphUtils.resolveGraph(null, Comment);
+            expect(result).to.be.null;
+        });
+
+        it('Returns null if graph is not a string', () => {
+            const result = GraphUtils.resolveGraph(Number, Comment);
+            expect(result).to.be.null;
+        });
+
+        it('Returns null if graph is empty', () => {
+            const result = GraphUtils.resolveGraph('', Comment);
+            expect(result).to.be.null;
+        });
+
         it('Resolves single segment graph', () => {
             const GRAPH = 'Comment';
             const result = GraphUtils.resolveGraph(GRAPH, Comment);
@@ -82,8 +102,20 @@ describe('Graph Utilities tests', () => {
             ]);
         });
 
+        it('Returns null if graph root is incorrect', () => {
+            const GRAPH = 'Post.author';
+            const result = GraphUtils.resolveGraph(GRAPH, Comment);
+            expect(result).to.be.null;
+        });
+
         it('Returns null on invalid polysegmented graph', () => {
             const GRAPH = 'Comment.post.invalid';
+            const result = GraphUtils.resolveGraph(GRAPH, Comment);
+            expect(result).to.be.null;
+        });
+
+        it('Returns null on invalid interstitial node', () => {
+            const GRAPH = 'Comment.invalid.author';
             const result = GraphUtils.resolveGraph(GRAPH, Comment);
             expect(result).to.be.null;
         });

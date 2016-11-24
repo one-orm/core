@@ -7,7 +7,7 @@
  * @returns {Model} - The model to which the field refers
  */
 export function getRef(field) {
-    if (!field.ref) {
+    if (!field || !field.ref) {
         return null;
     }
 
@@ -17,5 +17,5 @@ export function getRef(field) {
     if (Object.prototype.toString.call(field.ref) === '[object Function]') {
         return field.ref();
     }
-    return field.ref;
+    return null;
 }
