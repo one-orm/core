@@ -63,9 +63,6 @@ export function resolveGraph(path, root) {
     }
 
     let previousEntity = root;
-    if (!previousEntity) {
-        return null;
-    }
     result.push({
         'key': previousKey,
         'ref': previousEntity
