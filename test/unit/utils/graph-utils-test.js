@@ -59,42 +59,43 @@ const Comment = session.model('Comment', {
 describe('Graph Utilities tests', () => {
     describe('resolveGraph()', () => {
         it('Returns null if no root given', () => {
-            const result = GraphUtils.resolveGraph('Comment.post');
+            const result = GraphUtils.resolveGraph(null, 'Comment.post');
             expect(result).to.be.null;
         });
 
         it('Returns null if no graph given', () => {
-            const result = GraphUtils.resolveGraph(null, Comment);
+            const result = GraphUtils.resolveGraph(Comment);
             expect(result).to.be.null;
         });
 
         it('Returns null if graph is not a string', () => {
-            const result = GraphUtils.resolveGraph(Number, Comment);
+            const result = GraphUtils.resolveGraph(Comment, Number);
             expect(result).to.be.null;
         });
 
         it('Returns null if graph is empty', () => {
-            const result = GraphUtils.resolveGraph('', Comment);
+            const result = GraphUtils.resolveGraph(Comment, '');
             expect(result).to.be.null;
         });
 
         it('Resolves single segment graph', () => {
-            const GRAPH = 'Comment';
-            const result = GraphUtils.resolveGraph(GRAPH, Comment);
+            const GRAPH = 'post';
+            const result = GraphUtils.resolveGraph(Comment, GRAPH);
             expect(result).to.deep.equal([
-                { 'key': 'Comment', 'ref': Comment }
+                { 'key': 'Comment', 'ref': Comment },
+                { 'key': 'post', 'ref': Post }
             ]);
         });
 
         it('Returns null on invalid single segment graph', () => {
             const GRAPH = 'NotAnEntity';
-            const result = GraphUtils.resolveGraph(GRAPH, Comment);
+            const result = GraphUtils.resolveGraph(Comment, GRAPH);
             expect(result).to.be.null;
         });
 
         it('Resolves polysegmented graph', () => {
-            const GRAPH = 'Comment.post.author';
-            const result = GraphUtils.resolveGraph(GRAPH, Comment);
+            const GRAPH = 'post.author';
+            const result = GraphUtils.resolveGraph(Comment, GRAPH);
             expect(result).to.deep.equal([
                 { 'key': 'Comment', 'ref': Comment },
                 { 'key': 'post', 'ref': Post },
@@ -102,27 +103,21 @@ describe('Graph Utilities tests', () => {
             ]);
         });
 
-        it('Returns null if graph root is incorrect', () => {
-            const GRAPH = 'Post.author';
-            const result = GraphUtils.resolveGraph(GRAPH, Comment);
-            expect(result).to.be.null;
-        });
-
         it('Returns null on invalid polysegmented graph', () => {
-            const GRAPH = 'Comment.post.invalid';
-            const result = GraphUtils.resolveGraph(GRAPH, Comment);
+            const GRAPH = 'post.invalid';
+            const result = GraphUtils.resolveGraph(Comment, GRAPH);
             expect(result).to.be.null;
         });
 
         it('Returns null on invalid interstitial node', () => {
-            const GRAPH = 'Comment.invalid.author';
-            const result = GraphUtils.resolveGraph(GRAPH, Comment);
+            const GRAPH = 'invalid.author';
+            const result = GraphUtils.resolveGraph(Comment, GRAPH);
             expect(result).to.be.null;
         });
 
         it('Resolves non-referential terminal field', () => {
-            const GRAPH = 'Comment.post.author.name';
-            const result = GraphUtils.resolveGraph(GRAPH, Comment);
+            const GRAPH = 'post.author.name';
+            const result = GraphUtils.resolveGraph(Comment, GRAPH);
             expect(result).to.deep.equal([
                 { 'key': 'Comment', 'ref': Comment },
                 { 'key': 'post', 'ref': Post },

@@ -147,7 +147,7 @@ export default class FindQueryBuilder extends QueryBuilder {
             throw new Error('Join graphs must be relative to the query root');
         }
 
-        const nodes = GraphUtils.resolveGraph(graph, this._root);
+        const nodes = GraphUtils.resolveGraph(this._root, graph.substr(graph.indexOf('.') + 1));
 
         let lastNode = nodes.shift();
         let lastGraph = lastNode.key;
