@@ -16,8 +16,8 @@ import * as FieldUtils from './field-utils';
  *   - ref: If the node points to an entity, the ref property will be set to the
  *         name of that entity.
  *
- * An example result from a call for the path `Post.author.name` might look
- * something like:
+ * An example result from a call for the path `author.name` on the `Post` root,
+ * might look something like:
  *
  * ```
  * [{
@@ -32,40 +32,50 @@ import * as FieldUtils from './field-utils';
  * }]
  * ```
  *
- * @param {String} path - The textual graph representation to resolve
- * @param {Model} root - The root entity of the graph. Using the root entity
+ * @param {Model} from - The root entity of the graph. Using the root entity
  *         rather than a session allows us to support multiple sessions.
+ * @param {String} graph - The textual graph representation to resolve
  * @returns {Object[]|null} - A list of node representations or null if graph is
  *         invalid
  */
-export function resolveGraph(path, root) {
-    if (!root || !path || !path.substr || path.length === 0) {
+export function resolveGraph(from, graph) {
+    if (!from || !graph || !graph.substr || graph.length === 0) {
         return null;
     }
 
+    const buildNode = function (key, field) {
+        const node = {
+            key
+        };
+        if (field.ref) {
+            node.ref = FieldUtils.getRef(field);
+        } else {
+            node.type = field.type;
+        }
+        return node;
+    };
+
 	// If the graph is a single segment
-    if (path.indexOf('.') === -1) {
-        if (root.name !== path) {
+    if (graph.indexOf('.') === -1) {
+        const field = ModelUtils.getField(from, graph);
+        if (!field) {
             return null;
         }
-        return [{
-            'key': path,
-            'ref': root
+        const result = [{
+            'key': from.name,
+            'ref': from
         }];
+        result.push(buildNode(graph, field));
+        return result;
     }
 
 	// If the graph is more than one segment
+    const parts = graph.split('.');
     let result = [];
-    const parts = path.split('.');
-    const previousKey = parts.shift();
-    if (root.name !== previousKey) {
-        return null;
-    }
-
-    let previousEntity = root;
+    let previousEntity = from;
     result.push({
-        'key': previousKey,
-        'ref': previousEntity
+        'key': from.name,
+        'ref': from
     });
 
     parts.forEach((part) => {
@@ -78,17 +88,12 @@ export function resolveGraph(path, root) {
             result = null;
             return;
         }
-
-        const node = {
-            'key': part
-        };
-        if (field.ref) {
-            node.ref = FieldUtils.getRef(field);
-            previousEntity = node.ref;
-        } else {
-            node.type = field.type;
-        }
+        const node = buildNode(part, field);
         result.push(node);
+
+        if (field.ref) {
+            previousEntity = node.ref;
+        }
     });
     return result;
 }
