@@ -37,7 +37,7 @@ export default class Session {
      */
     model(name, fields, options) {
         options = options || {};
-        if (options.extend && !(options.extend instanceof Model)) {
+        if (options.extend && !options.extend._modelMeta) {
             throw new Error('Model must extend another model');
         }
 
@@ -77,7 +77,7 @@ export default class Session {
      *         in the resulting dataset
      * @returns {Promise} - A promise to be fulfilled with the result
      */
-    findAll(cls, query, options = {}) {
+    findAll(cls, query, options) {
         return this._find(cls, query, options);
     }
 
@@ -91,7 +91,7 @@ export default class Session {
      * @param {Object} options - Options governing the query run
      * @returns {Promise} - A promise to be fulfilled with the result
      */
-    findOne(cls, query, options = {}) {
+    findOne(cls, query, options) {
         return this._find(cls, query, Object.assign({}, options, {
             'skip': 0,
             'limit': 1
@@ -108,7 +108,7 @@ export default class Session {
      * @param {Object} options - Options governing the query run
      * @returns {Promise} - A promise to be fulfilled with the result
      */
-    findOnly(cls, query, options = {}) {
+    findOnly(cls, query, options) {
         return this
             ._find(cls, query, Object.assign({}, options, {
                 'skip': 0,
@@ -238,7 +238,7 @@ export default class Session {
      * @param {Object} options - Map of additional query options
      * @returns {Promise} - A promise fulfilled by the result of the query
      */
-    _find(cls, conditions, options = {}) {
+    _find(cls, conditions, options) {
         const query = new FindQueryBuilder(cls, conditions, options, this);
         return Promise.resolve(this.adapter.find(query.toQueryObject()));
     }

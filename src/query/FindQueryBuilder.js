@@ -1,6 +1,7 @@
 import * as ModelUtils from '../utils/model-utils';
 import * as JoinUtils from '../utils/join-utils';
 import * as GraphUtils from '../utils/graph-utils';
+import * as FieldUtils from '../utils/field-utils';
 import QueryBuilder from './QueryBuilder';
 
 /**
@@ -97,22 +98,27 @@ export default class FindQueryBuilder extends QueryBuilder {
         }
         Object.keys(fields).forEach((key) => {
             const field = fields[key];
-
-            // Priorities:
-            // 1) Explicit exclude
-            // 2) Explicit include
-            // 3) Model exclude
             const _graph = graph + '.' + key;
-            if (this.options.exclude.indexOf(_graph) !== -1
-                    || (field.exclude && this.options.include.indexOf(_graph) === -1)) {
+
+            // 1) Explicit exclude takes priority over includes
+            if (this.options.exclude.indexOf(_graph) !== -1) {
+                return;
+            }
+
+            // 2) Explicit include overrides model exclude
+            if (field.exclude && this.options.include.indexOf(_graph) === -1) {
                 return;
             }
 
             // If this is a relational field
-            if (field.ref && (field.eager
-                    || this.options.include.indexOf(_graph) !== -1)) {
-                this.join(_graph);
-                return;
+            if (field.ref) {
+                if (field.eager || this.options.include.indexOf(_graph) !== -1) {
+                    this.join(_graph);
+                    return;
+                }
+                if (field.relation === 'one-to-many' || field.relation === 'many-to-many') {
+                    return;
+                }
             }
 
             this._fields.push({
@@ -141,7 +147,7 @@ export default class FindQueryBuilder extends QueryBuilder {
             throw new Error('Join graphs must be relative to the query root');
         }
 
-        const nodes = GraphUtils.resolveGraph(graph, this._root);
+        const nodes = GraphUtils.resolveGraph(this._root, graph.substr(graph.indexOf('.') + 1));
 
         let lastNode = nodes.shift();
         let lastGraph = lastNode.key;
@@ -149,6 +155,7 @@ export default class FindQueryBuilder extends QueryBuilder {
         nodes.forEach((node) => {
             const currentGraph = lastGraph + '.' + node.key;
             const existingAlias = this._joinFromLookup[currentGraph];
+
             if (existingAlias) {
                 lastGraph = currentGraph;
                 lastNode = node;
@@ -156,20 +163,43 @@ export default class FindQueryBuilder extends QueryBuilder {
                 return;
             }
 
-            // TODO We want to join on the current graph
-            const alias = this.tableAlias(node.ref.name);
-            this._joins.push({
-                'table': node.ref._modelMeta.options.table,
-                'as': alias,
-                'on': JoinUtils.getJoinColumns(lastNode.ref, node.key, lastAlias, alias),
-                'from': currentGraph
-            });
+            const sourceField = ModelUtils.getField(lastNode.ref, node.key);
+            const target = FieldUtils.getRef(node);
+            const targetAlias = this.tableAlias(target.name);
+
+            if (sourceField.relation === 'many-to-many') {
+                const startField = sourceField;
+                const endField = JoinUtils.getOtherSide(sourceField);
+                const endAlias = targetAlias;
+                const associationEntity = endField.through;
+                const associationAlias = this.tableAlias(associationEntity.name);
+
+                this._joins.push({
+                    'table': associationEntity._modelMeta.options.table,
+                    'as': associationAlias,
+                    'on': JoinUtils.getJoinColumns(JoinUtils.getFieldReferringTo(startField.through, startField.owningModel), associationAlias, lastAlias)
+                });
+
+                this._joins.push({
+                    'table': endField.owningModel._modelMeta.options.table,
+                    'as': endAlias,
+                    'on': JoinUtils.getJoinColumns(JoinUtils.getFieldReferringTo(endField.through, endField.owningModel), associationAlias, endAlias)
+                });
+            } else {
+                this._joins.push({
+                    'table': target._modelMeta.options.table,
+                    'as': targetAlias,
+                    'on': JoinUtils.getJoinColumns(sourceField, lastAlias, targetAlias),
+                    'from': currentGraph
+                });
+            }
+
+            this.addFields(currentGraph, targetAlias, ModelUtils.getFields(ModelUtils.getModel(node.ref)));
+            this.joinParent(FieldUtils.getRef(node), targetAlias);
+
             lastGraph = currentGraph;
             lastNode = node;
-            lastAlias = alias;
-
-            this.addFields(lastGraph, lastAlias, ModelUtils.getFields(lastNode.ref));
-            this.joinParent(lastNode.ref, lastAlias);
+            lastAlias = targetAlias;
         });
         return lastAlias;
     }

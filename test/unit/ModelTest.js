@@ -46,7 +46,7 @@ describe('Model tests', () => {
                 'email': {
                     'column': 'email',
                     'name': 'email',
-                    'owningModel': 'Client',
+                    'owningModel': Client,
                     'primaryKey': true,
                     'type': String
                 }
@@ -55,14 +55,14 @@ describe('Model tests', () => {
                 'id': {
                     'column': 'id',
                     'name': 'id',
-                    'owningModel': 'User',
+                    'owningModel': User,
                     'primaryKey': true,
                     'type': Number
                 },
                 'email': {
                     'column': 'email',
                     'name': 'email',
-                    'owningModel': 'Client',
+                    'owningModel': Client,
                     'primaryKey': true,
                     'type': String
                 }
